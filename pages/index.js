@@ -20,7 +20,7 @@ export default function Home() {
     sessionStorage.setItem("hasSeenPopup", "true");
   };
 
-  // Ambil data laporan dari backend
+  // Ambil data laporan dari API
   useEffect(() => {
     const fetchReports = async () => {
       try {
@@ -40,16 +40,19 @@ export default function Home() {
     if (!name || !region || !description) return alert("Isi semua kolom dulu ya!");
 
     try {
+      const payload = { type: "report", name, region, description };
+
       const res = await fetch("/api/reports", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, region, description }),
+        body: JSON.stringify(payload),
       });
 
       const data = await res.json();
+
       if (!res.ok) throw new Error(data.error || "Gagal kirim laporan");
 
-      setReports([...reports, data]); // pakai data langsung dari Apps Script
+      setReports([...reports, { ...payload, id: data.id }]);
       setName("");
       setRegion("");
       setDescription("");
@@ -77,7 +80,12 @@ export default function Home() {
       {showPopup && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="relative bg-white rounded-xl shadow-2xl overflow-hidden w-96">
-            <button onClick={closePopup} className="absolute top-2 right-2 text-gray-600 hover:text-red-500 text-lg font-bold">✕</button>
+            <button
+              onClick={closePopup}
+              className="absolute top-2 right-2 text-gray-600 hover:text-red-500 text-lg font-bold"
+            >
+              ✕
+            </button>
             <img src="/popup-banner.jpg" alt="Popup" className="w-full h-auto" />
           </div>
         </div>
@@ -86,7 +94,9 @@ export default function Home() {
       {/* HEADER */}
       <header className="bg-gradient-to-r from-ipbBlue to-ipbGreen text-white py-8 shadow-md">
         <div className="text-center">
-          <h1 className="text-4xl font-bold tracking-wide">Pengaduan Praktik Kotor Politik Uang</h1>
+          <h1 className="text-4xl font-bold tracking-wide">
+            Pengaduan Praktik Kotor Politik Uang
+          </h1>
           <p className="text-sm opacity-90 mt-2">Suara Mahasiswa IPB untuk Demokrasi Tanpa Suap 🌿💙</p>
           <div className="flex justify-center mt-4">
             <img src="/ipb-logo.png" alt="Logo IPB" className="w-20 h-auto drop-shadow-lg" />
@@ -131,7 +141,10 @@ export default function Home() {
                 placeholder="Tuliskan detail dugaan praktik politik uang"
               />
             </div>
-            <button type="submit" className="w-full bg-gradient-to-r from-ipbBlue to-ipbGreen text-white py-3 rounded-lg font-semibold flex items-center justify-center gap-2 hover:opacity-90 transition">
+            <button
+              type="submit"
+              className="w-full bg-gradient-to-r from-ipbBlue to-ipbGreen text-white py-3 rounded-lg font-semibold flex items-center justify-center gap-2 hover:opacity-90 transition"
+            >
               <Send className="w-5 h-5" /> Kirim Pengaduan
             </button>
           </form>
