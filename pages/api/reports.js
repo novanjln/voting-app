@@ -20,7 +20,7 @@ export default async function handler(req, res) {
       const result = await response.json();
       if (result.error) return res.status(500).json({ error: result.error });
 
-      res.status(200).json(result); // kembalikan semua field dari Apps Script
+      res.status(200).json(result);
     } else {
       res.setHeader("Allow", ["GET", "POST"]);
       res.status(405).end(`Method ${req.method} Not Allowed`);
