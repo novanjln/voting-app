@@ -1,12 +1,5 @@
 import { useEffect, useState } from "react";
-import {
-  Send,
-  FileSpreadsheet,
-  Download,
-  AlertCircle,
-  ThumbsUp,
-  ThumbsDown,
-} from "lucide-react";
+import { Send, FileSpreadsheet, Download, AlertCircle } from "lucide-react";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 
@@ -27,7 +20,7 @@ export default function Home() {
     sessionStorage.setItem("hasSeenPopup", "true");
   };
 
-  // Ambil data dari Google Sheets melalui API Next.js
+  // Ambil data laporan dari API
   useEffect(() => {
     const fetchReports = async () => {
       try {
@@ -44,20 +37,22 @@ export default function Home() {
   // Kirim laporan baru
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!name || !region || !description)
-      return alert("Isi semua kolom dulu ya!");
+    if (!name || !region || !description) return alert("Isi semua kolom dulu ya!");
 
     try {
+      const payload = { type: "report", name, region, description };
+
       const res = await fetch("/api/reports", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, region, description }),
+        body: JSON.stringify(payload),
       });
+
       const data = await res.json();
 
       if (!res.ok) throw new Error(data.error || "Gagal kirim laporan");
 
-      setReports([...reports, { ...data, upvotes: 0, downvotes: 0 }]);
+      setReports([...reports, { ...payload, id: data.id }]);
       setName("");
       setRegion("");
       setDescription("");
@@ -68,69 +63,16 @@ export default function Home() {
     }
   };
 
-  // Voting
-  const handleVote = async (id, type) => {
-  const votedKey = `voted-${id}`;
-  if (localStorage.getItem(votedKey)) {
-    alert("Kamu sudah memberikan voting untuk laporan ini di device ini.");
-    return;
-  }
-
-  try {
-    const res = await fetch("/api/vote", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: Number(id), voteType: type }),
-    });
-
-    const data = await res.json();
-
-    if (!res.ok || data.error) {
-      if (data.error === "already_voted") {
-        alert("Kamu sudah vote (IP sudah tercatat).");
-      } else {
-        alert("Gagal mengirim vote: " + (data.error || "Unknown error"));
-      }
-      return;
-    }
-
-    // sukses: update UI
-    if (data.result?.updatedVote) {
-      setReports(prev =>
-        prev.map(r =>
-          r.id === id ? { ...r, upvotes: data.result.updatedVote.upvotes, downvotes: data.result.updatedVote.downvotes } : r
-        )
-      );
-      localStorage.setItem(votedKey, type);
-    }
-  } catch (err) {
-    console.error("Gagal mengirim vote:", err);
-    alert("Gagal mengirim vote. Coba lagi.");
-  }
-};
-
   // Export Excel
   const exportToExcel = () => {
-    if (reports.length === 0) {
-      alert("Belum ada data untuk diexport!");
-      return;
-    }
+    if (reports.length === 0) return alert("Belum ada data untuk diexport!");
     const worksheet = XLSX.utils.json_to_sheet(reports);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Laporan");
     const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
-    const blob = new Blob([excelBuffer], {
-      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    });
+    const blob = new Blob([excelBuffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
     saveAs(blob, "laporan-politik-uang.xlsx");
   };
-
-  // Statistik voting
-  const totalUpvotes = reports.reduce((a, r) => a + (r.upvotes || 0), 0);
-  const totalDownvotes = reports.reduce((a, r) => a + (r.downvotes || 0), 0);
-  const totalVotes = totalUpvotes + totalDownvotes;
-  const upPercent = totalVotes ? ((totalUpvotes / totalVotes) * 100).toFixed(1) : 0;
-  const downPercent = totalVotes ? ((totalDownvotes / totalVotes) * 100).toFixed(1) : 0;
 
   return (
     <div className="min-h-screen bg-gray-50 text-gray-800 font-poppins">
@@ -152,10 +94,10 @@ export default function Home() {
       {/* HEADER */}
       <header className="bg-gradient-to-r from-ipbBlue to-ipbGreen text-white py-8 shadow-md">
         <div className="text-center">
-          <h1 className="text-4xl font-bold tracking-wide">Pengaduan Praktik Kotor Politik Uang</h1>
-          <p className="text-sm opacity-90 mt-2">
-            Suara Mahasiswa IPB untuk Demokrasi Tanpa Suap 🌿💙
-          </p>
+          <h1 className="text-4xl font-bold tracking-wide">
+            Pengaduan Praktik Kotor Politik Uang
+          </h1>
+          <p className="text-sm opacity-90 mt-2">Suara Mahasiswa IPB untuk Demokrasi Tanpa Suap 🌿💙</p>
           <div className="flex justify-center mt-4">
             <img src="/ipb-logo.png" alt="Logo IPB" className="w-20 h-auto drop-shadow-lg" />
           </div>
@@ -229,7 +171,6 @@ export default function Home() {
                     <th className="p-3 text-left">Nama</th>
                     <th className="p-3 text-left">Wilayah</th>
                     <th className="p-3 text-left">Deskripsi</th>
-                    <th className="p-3 text-center">Voting</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -238,30 +179,10 @@ export default function Home() {
                       <td className="p-3">{r.name}</td>
                       <td className="p-3">{r.region}</td>
                       <td className="p-3">{r.description}</td>
-                      <td className="p-3 text-center flex items-center justify-center gap-4">
-                        <button
-                          onClick={() => handleVote(r.id, "up")}
-                          className="text-ipbGreen hover:scale-110 transition"
-                        >
-                          <ThumbsUp className="w-5 h-5 inline" /> {r.upvotes}
-                        </button>
-                        <button
-                          onClick={() => handleVote(r.id, "down")}
-                          className="text-red-600 hover:scale-110 transition"
-                        >
-                          <ThumbsDown className="w-5 h-5 inline" /> {r.downvotes}
-                        </button>
-                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-            </div>
-            <div className="mt-6 text-sm text-gray-600">
-              <p>Total Voting: {totalVotes}</p>
-              <p>
-                👍 Dukungan: {upPercent}% | 👎 Tidak Setuju: {downPercent}%
-              </p>
             </div>
           </div>
         )}
