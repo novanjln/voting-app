@@ -190,7 +190,7 @@ export default function Home() {
 
       {/* FOOTER */}
       <footer className="text-center text-gray-500 text-sm py-8">
-        <p>© 2025 Kolaborasi Mahasiswa IPB untuk Demokrasi Bersih | Jesica A. P</p>
+        <p>© 2025 Kolaborasi Mahasiswa IPB untuk Demokrasi Bersih</p>
       </footer>
     </div>
   );
